@@ -10,6 +10,6 @@ app.use(cors());
 
 app.use(employeeRoutes);
 
-app.listen(8082, () => {
-    console.log(`Server is running on port 8082`);
+app.listen(10000, () => {
+    console.log(`Server is running on port 10000`);
 });
