@@ -4,14 +4,14 @@ const { body, validationResult } = require("express-validator");
 
 // Get all employees
 const getEmployees = async (req, res) => {
-    let page = parseInt(req.query.page) || 1; // Default to page 1
-    let limit = parseInt(req.query.limit) || 5; // Default to 5
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 5;
 
     // Validate page number before any operation
     if (!page || page < 1) {
         return res.status(400).json({ error: "Invalid page number. It must be a positive integer." });
     }
-    let offset = (page - 1) * limit; // Calculate offset
+    let offset = (page - 1) * limit;
 
     const query = `
         SELECT e.id, e.name, e.dob, e.phone, e.photo, e.email, e.salary, e.status, d.name AS department_name
@@ -21,16 +21,32 @@ const getEmployees = async (req, res) => {
     `;
 
     db.query(query, [limit, offset], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            return res.status(500).json(
+                {
+                    success: false, message: "Database query failed",
+                    error: err.message 
+                }
+            );
+        }
 
         // Get total employee count for pagination info
         db.query("SELECT COUNT(*) AS total FROM employee", (countErr, countResult) => {
-            if (countErr) return res.status(500).json({ error: countErr.message });
+            if (countErr) {
+                return res.status(500).json(
+                    { 
+                        success: false, 
+                        message: "Failed to count employees", 
+                        error: countErr.message
+                    }
+                );
+            }
 
             let totalEmployees = countResult[0].total;
             let totalPages = Math.ceil(totalEmployees / limit);
 
             res.status(200).json({
+                success: true,
                 page,
                 totalPages,
                 totalEmployees,
@@ -46,25 +62,50 @@ const addEmployee = async (req, res) => {
     // Validate request body
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json(
+            { 
+                success: false, 
+                errors: errors.array() 
+            }
+        );
     }
 
     const { department_id, name, dob, phone, photo, email, salary, status } = req.body;
 
     // Check if phone number already exists
     db.query("SELECT * FROM employee WHERE phone = ?", [phone], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            return res.status(500).json(
+                { 
+                    success: false, 
+                    error: "Internal Server Error", 
+                    details: err.message 
+                }
+            );
+        }
 
         if (results.length > 0) {
-            return res.status(400).json({ error: "Phone number already exists." });
+            return res.status(409).json(
+                {   
+                    success: false, 
+                    error: "Phone number already exists." 
+                }
+            );
         }
 
         // Insert new employee
         const employeeData = { department_id, name, dob, phone, photo, email, salary, status };
         db.query("INSERT INTO employee SET ?", employeeData, (insertErr, result) => {
-            if (insertErr) return res.status(500).json({ error: insertErr.message });
-
-            res.status(201).json({ message: "Employee added successfully", id: result.insertId });
+            if (insertErr) {
+                return res.status(500).json({ success: false, error: "Internal Server Error", details: insertErr.message });
+            }
+            res.status(201).json(
+                { 
+                    success: true, 
+                    message: "Employee added successfully",
+                    id: result.insertId 
+                }
+            );
         });
     });
 };
@@ -72,7 +113,7 @@ const addEmployee = async (req, res) => {
 
 // Edit an existing employee
 const editEmployee = async (req, res) => {
-    const { email } = req.params; // Get email from URL
+    const { email } = req.params;
     const { department_id, name, dob, phone, photo, salary, status } = req.body;
 
     // Validate request body
@@ -106,7 +147,9 @@ const editEmployee = async (req, res) => {
             db.query(updateQuery, [department_id, name, dob, phone, photo, salary, status, email], (updateErr) => {
                 if (updateErr) return res.status(500).json({ error: updateErr.message });
 
-                res.status(200).json({ message: "Employee updated successfully" });
+                res.status(200).json({
+                    success : true, 
+                    message: "Employee updated successfully" });
             });
         });
     });
@@ -129,7 +172,8 @@ const deleteEmployee = (req, res) => {
             return res.status(404).json({ error: "Employee not found with this email." });
         }
 
-        res.status(200).json({ message: "Employee deleted successfully." });
+        res.status(200).json({ 
+            success : true, message: "Employee deleted successfully." });
     });
 };
 
@@ -155,7 +199,10 @@ const getHighestSalaryByDepartment = (req, res) => {
             return res.status(404).json({ error: "No data found." });
         }
 
-        res.status(200).json(results);
+        res.status(200).json({
+            success : true,
+            results
+        });
     });
 };
 
@@ -178,7 +225,10 @@ const getEmployeeCountBySalaryRange = (req, res) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
-        res.status(200).json(results);
+        res.status(200).json({
+            success : true,
+            results
+        });
     });
 };
 
@@ -202,7 +252,10 @@ const getYoungestEmployeePerDepartment = (req, res) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
-        res.status(200).json(results);
+        res.status(200).json({
+            success : true,
+            results
+        });
     });
 };
 
